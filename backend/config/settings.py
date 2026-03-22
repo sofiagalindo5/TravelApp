@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'api',
     'travel_users',
+    'countries',
 ]
 
 MIDDLEWARE = [
