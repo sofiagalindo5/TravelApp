@@ -6,7 +6,7 @@ import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
 
 // add near imports or top of file
-const API_BASE_URL = "http://10.136.94.13:8000"; // <-- replace with your laptop IP
+const API_BASE_URL = "http://192.168.4.211:8000"; // <-- replace with your laptop IP
 
 export default function LoginScreen() {
   const [email, setEmail] = useState("");     // (this is really username for now)
