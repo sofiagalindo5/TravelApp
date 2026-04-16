@@ -7,193 +7,401 @@ import {
   Pressable,
   StyleSheet,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { Stack, useLocalSearchParams, useRouter } from "expo-router";
+import * as SecureStore from "expo-secure-store";
+import { API_BASE_URL } from "../../constants/api";
 
-const API_BASE_URL = "http://192.168.4.211:8000";
-
-type HotelItem = {
-  id: number;
-  name: string;
-  city?: string;
-  notes?: string;
-};
-
-type TipItem = {
-  id: number;
-  text: string;
-};
-
-type GemItem = {
-  id: number;
-  name: string;
-  description?: string;
-};
-
-type ItineraryItem = {
-  id: number;
-  title?: string;
-  content?: string;
-};
-
-type InterviewItem = {
-  id: number;
-  quote?: string;
-  content?: string;
-  person_name?: string;
+type SectionCardProps = {
+  title: string;
+  icon: string;
+  subtitle: string;
+  onPress: () => void;
 };
 
 type CountryDetail = {
   id: number;
   name: string;
-  city?: string | null;
-  short_description?: string | null;
-  hotels?: HotelItem[];
-  safety_tips?: TipItem[];
-  hidden_gems?: GemItem[];
-  pro_tips?: TipItem[];
-  itinerary_days?: ItineraryItem[];
-  personal_interview?: InterviewItem | null;
+  short_description?: string;
+  is_visited?: boolean;
 };
 
-type InfoCardProps = {
-  title: string;
-  icon: string;
-  content: string;
-};
-
-function InfoCard({ title, icon, content }: InfoCardProps) {
+function SectionCard({ title, icon, subtitle, onPress }: SectionCardProps) {
   return (
-    <View style={styles.infoCard}>
-      <View style={styles.infoHeader}>
-        <Text style={styles.infoIcon}>{icon}</Text>
-        <Text style={styles.infoTitle}>{title}</Text>
+    <Pressable style={styles.card} onPress={onPress}>
+      <View style={styles.cardHeader}>
+        <Text style={styles.cardIcon}>{icon}</Text>
+        <Text style={styles.cardTitle}>{title}</Text>
       </View>
-      <Text style={styles.infoContent}>{content}</Text>
-    </View>
+      <Text style={styles.cardSubtitle}>{subtitle}</Text>
+    </Pressable>
   );
 }
 
 export default function CountryDetailScreen() {
   const router = useRouter();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const params = useLocalSearchParams();
+  const id = Array.isArray(params.id) ? params.id[0] : params.id;
+  const name = Array.isArray(params.name) ? params.name[0] : params.name;
 
+  const [tripDate, setTripDate] = useState("");
+  const [settingTrip, setSettingTrip] = useState(false);
   const [country, setCountry] = useState<CountryDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [markingVisited, setMarkingVisited] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    async function loadCountryDetail() {
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/countries/${id}/`);
-        const data = await response.json();
-
-        console.log("Fetched country detail:", data);
-
-        setCountry(data);
-      } catch (error) {
-        console.log("Error loading country detail:", error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
     if (id) {
-      loadCountryDetail();
+      fetchCountryDetail();
     }
   }, [id]);
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.safe}>
+  const fetchCountryDetail = async () => {
+    try {
+      setLoading(true);
+      setError("");
+
+      let accessToken = await SecureStore.getItemAsync("accessToken");
+
+      if (!accessToken) {
+        setError("No access token found. Please log in again.");
+        return;
+      }
+
+      let response = await fetch(`${API_BASE_URL}/api/countries/${id}/`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.status === 401) {
+        const refreshToken = await SecureStore.getItemAsync("refreshToken");
+
+        if (!refreshToken) {
+          setError("Session expired. Please log in again.");
+          return;
+        }
+
+        const refreshResponse = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            refresh: refreshToken,
+          }),
+        });
+
+        const refreshData = await refreshResponse.json();
+
+        if (!refreshResponse.ok || !refreshData.access) {
+          setError("Session expired. Please log in again.");
+          return;
+        }
+
+        accessToken = refreshData.access;
+        await SecureStore.setItemAsync("accessToken", accessToken);
+
+        response = await fetch(`${API_BASE_URL}/api/countries/${id}/`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+      }
+
+      const text = await response.text();
+      console.log("country detail raw response:", text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(`Server returned non-JSON response: ${text}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.detail ?? "Could not load country");
+      }
+
+      setCountry(data);
+    } catch (err: any) {
+      console.log("fetchCountryDetail error:", err);
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMarkVisited = async () => {
+    if (!id || country?.is_visited) return;
+
+    try {
+      setMarkingVisited(true);
+      setError("");
+
+      let accessToken = await SecureStore.getItemAsync("accessToken");
+
+      if (!accessToken) {
+        setError("No access token found. Please log in again.");
+        return;
+      }
+
+      let response = await fetch(`${API_BASE_URL}/api/auth/profile/visited/${id}/`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (response.status === 401) {
+        const refreshToken = await SecureStore.getItemAsync("refreshToken");
+
+        if (!refreshToken) {
+          setError("Session expired. Please log in again.");
+          return;
+        }
+
+        const refreshResponse = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            refresh: refreshToken,
+          }),
+        });
+
+        const refreshData = await refreshResponse.json();
+
+        if (!refreshResponse.ok || !refreshData.access) {
+          setError("Session expired. Please log in again.");
+          return;
+        }
+
+        accessToken = refreshData.access;
+        await SecureStore.setItemAsync("accessToken", accessToken);
+
+        response = await fetch(`${API_BASE_URL}/api/auth/profile/visited/${id}/`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+      }
+
+      const text = await response.text();
+      console.log("mark visited raw response:", text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(`Server returned non-JSON response: ${text}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.detail ?? "Could not mark country as visited");
+      }
+
+      setCountry((prev) =>
+        prev
+          ? {
+              ...prev,
+              is_visited: true,
+            }
+          : prev
+      );
+    } catch (err: any) {
+      console.log("handleMarkVisited error:", err);
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setMarkingVisited(false);
+    }
+  };
+
+  const handleRSVP = async () => {
+    if (!id || !tripDate) {
+      setError("Please enter a date (YYYY-MM-DD)");
+      return;
+    }
+
+    try {
+      setSettingTrip(true);
+      setError("");
+
+      let accessToken = await SecureStore.getItemAsync("accessToken");
+
+      if (!accessToken) {
+        setError("No access token found. Please log in again.");
+        return;
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/auth/profile/upcoming-trip/${id}/`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            trip_date: tripDate,
+          }),
+        }
+      );
+
+      const text = await response.text();
+      console.log("RSVP raw response:", text);
+
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch {
+        throw new Error(`Server returned non-JSON response: ${text}`);
+      }
+
+      if (!response.ok) {
+        throw new Error(data?.detail ?? "Could not set trip");
+      }
+
+      alert("Trip saved!");
+    } catch (err: any) {
+      console.log("handleRSVP error:", err);
+      setError(err.message || "Something went wrong.");
+    } finally {
+      setSettingTrip(false);
+    }
+  };
+
+  const countryName = country?.name || name || "Destination";
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <Stack.Screen options={{ headerShown: false }} />
+
+      {loading ? (
         <View style={styles.centered}>
           <ActivityIndicator size="large" />
           <Text style={styles.loadingText}>Loading destination...</Text>
         </View>
-      </SafeAreaView>
-    );
-  }
-
-  if (!country) {
-    return (
-      <SafeAreaView style={styles.safe}>
+      ) : error ? (
         <View style={styles.centered}>
-          <Text style={styles.notFoundText}>Destination not found</Text>
+          <Text style={styles.errorText}>{error}</Text>
         </View>
-      </SafeAreaView>
-    );
-  }
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.page}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.headerBlock}>
+            <Pressable style={styles.backButton} onPress={() => router.back()}>
+              <Text style={styles.backButtonText}>‹ Back</Text>
+            </Pressable>
 
-  const hotelContent =
-    country.hotels && country.hotels.length > 0
-      ? country.hotels
-          .map((hotel) => `${hotel.name}${hotel.city ? ` - ${hotel.city}` : ""}`)
-          .join("\n")
-      : "Coming soon";
+            <Text style={styles.headerTitle}>{countryName}</Text>
+            <Text style={styles.headerSubtitle}>
+              Explore travel details by section
+            </Text>
 
-  const safetyContent =
-    country.safety_tips && country.safety_tips.length > 0
-      ? country.safety_tips.map((tip) => tip.text).join("\n")
-      : "Coming soon";
+            <View style={styles.visitedWrapper}>
+              {country?.is_visited ? (
+                <View style={styles.visitedBadge}>
+                  <Text style={styles.visitedBadgeText}>✓ Visited</Text>
+                </View>
+              ) : (
+                <Pressable
+                  style={[
+                    styles.visitedButton,
+                    markingVisited && styles.visitedButtonDisabled,
+                  ]}
+                  onPress={handleMarkVisited}
+                  disabled={markingVisited}
+                >
+                  <Text style={styles.visitedButtonText}>
+                    {markingVisited ? "Marking..." : "Mark as Visited"}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+          </View>
 
-  const itineraryContent =
-    country.itinerary_days && country.itinerary_days.length > 0
-      ? country.itinerary_days
-          .map((item) => item.title || item.content || "Itinerary item")
-          .join("\n")
-      : "Coming soon";
+          <View style={styles.rsvpWrapper}>
+            <Text style={styles.rsvpTitle}>RSVP to this trip</Text>
 
-  const interviewContent = country.personal_interview
-    ? country.personal_interview.quote ||
-      country.personal_interview.content ||
-      "Interview available soon"
-    : "Coming soon";
+            <Text style={styles.rsvpHint}>Enter date (YYYY-MM-DD)</Text>
 
-  const gemsContent =
-    country.hidden_gems && country.hidden_gems.length > 0
-      ? country.hidden_gems
-          .map((gem) => gem.name || gem.description || "Hidden gem")
-          .join("\n")
-      : "Coming soon";
+            <TextInput
+              style={styles.dateInput}
+              value={tripDate}
+              onChangeText={setTripDate}
+              placeholder="2026-06-20"
+              placeholderTextColor="#8b7b7b"
+            />
 
-  const proTipsContent =
-    country.pro_tips && country.pro_tips.length > 0
-      ? country.pro_tips.map((tip) => tip.text).join("\n")
-      : "Coming soon";
+            <Pressable
+              style={[styles.rsvpButton, settingTrip && styles.visitedButtonDisabled]}
+              onPress={handleRSVP}
+              disabled={settingTrip}
+            >
+              <Text style={styles.rsvpButtonText}>
+                {settingTrip ? "Saving..." : "RSVP to this Trip"}
+              </Text>
+            </Pressable>
+          </View>
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <ScrollView
-        contentContainerStyle={styles.page}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.headerBlock}>
-          <Pressable style={styles.backButton} onPress={() => router.back()}>
-            <Text style={styles.backButtonText}>‹ Back</Text>
-          </Pressable>
+          <View style={styles.grid}>
+            <SectionCard
+              title="Hotels"
+              icon="🏨"
+              subtitle="View recommended stays"
+              onPress={() => router.push(`/countries/${id}/hotels`)}
+            />
 
-          <Text style={styles.headerTitle}>
-            {country.city || country.name}
-          </Text>
-          <Text style={styles.headerSubtitle}>{country.name}</Text>
-        </View>
+            <SectionCard
+              title="Safety Tips"
+              icon="🛡️"
+              subtitle="View local safety advice"
+              onPress={() => router.push(`/countries/${id}/safety-tips`)}
+            />
 
-        <View style={styles.grid}>
-          <InfoCard title="Hotel" icon="🏨" content={hotelContent} />
-          <InfoCard title="Safety Tips" icon="🛡️" content={safetyContent} />
-          <InfoCard
-            title="Weekend Itinerary"
-            icon="🗓️"
-            content={itineraryContent}
-          />
-          <InfoCard
-            title="Personal Interview"
-            icon="💬"
-            content={interviewContent}
-          />
-          <InfoCard title="Hidden Gems" icon="📍" content={gemsContent} />
-          <InfoCard title="Pro-Tips" icon="💡" content={proTipsContent} />
-        </View>
-      </ScrollView>
+            <SectionCard
+              title="Weekend Itinerary"
+              icon="🗓️"
+              subtitle="View trip plan ideas"
+              onPress={() => router.push(`/countries/${id}/itinerary`)}
+            />
+
+            <SectionCard
+              title="Personal Interviews"
+              icon="💬"
+              subtitle="View local perspectives"
+              onPress={() => router.push(`/countries/${id}/interviews`)}
+            />
+
+            <SectionCard
+              title="Hidden Gems"
+              icon="📍"
+              subtitle="View unique places"
+              onPress={() => router.push(`/countries/${id}/hidden-gems`)}
+            />
+
+            <SectionCard
+              title="Pro-Tips"
+              icon="💡"
+              subtitle="View practical tips"
+              onPress={() => router.push(`/countries/${id}/pro-tips`)}
+            />
+          </View>
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -201,62 +409,151 @@ export default function CountryDetailScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#fff5f5",
+    backgroundColor: "#f2e6ca8a",
   },
 
   page: {
-    paddingTop: 40,
-    paddingBottom: 24,
+    paddingTop: 28,
+    paddingBottom: 28,
   },
 
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    gap: 12,
     paddingHorizontal: 24,
   },
 
   loadingText: {
-    color: "#7f1d1d",
-    fontSize: 16,
+    marginTop: 12,
+    fontSize: 14,
+    color: "#7a2d3f",
   },
 
-  notFoundText: {
-    color: "#7f1d1d",
-    fontSize: 18,
-    fontWeight: "600",
+  errorText: {
+    fontSize: 14,
+    color: "#7a2d3f",
+    textAlign: "center",
   },
 
   headerBlock: {
     paddingHorizontal: 24,
-    paddingBottom: 16,
-    marginBottom: 12,
-    backgroundColor: "#fee2e2",
+    paddingBottom: 20,
+    marginBottom: 16,
   },
 
   backButton: {
-    marginBottom: 12,
+    marginBottom: 14,
     alignSelf: "flex-start",
     paddingVertical: 6,
   },
 
   backButtonText: {
-    color: "#dc2626",
+    color: "#5a1e2c",
     fontSize: 16,
     fontWeight: "600",
   },
 
   headerTitle: {
-    color: "#7f1d1d",
-    fontSize: 28,
+    color: "#8d1035ff",
+    fontSize: 30,
     fontWeight: "700",
   },
 
   headerSubtitle: {
-    color: "#b91c1c",
-    fontSize: 15,
-    marginTop: 4,
+    color: "#7a2d3f",
+    fontSize: 14,
+    marginTop: 6,
+  },
+
+  visitedWrapper: {
+    marginTop: 16,
+  },
+
+  visitedButton: {
+    backgroundColor: "#8d1035ff",
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+
+  visitedButtonDisabled: {
+    opacity: 0.7,
+  },
+
+  visitedButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  visitedBadge: {
+    backgroundColor: "#e9dfcc",
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderColor: "#d8c7a1",
+  },
+
+  visitedBadgeText: {
+    color: "#8d1035ff",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  rsvpWrapper: {
+    marginTop: 8,
+    marginHorizontal: 24,
+    marginBottom: 20,
+    backgroundColor: "#ffffff",
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: "#000",
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
+  },
+
+  rsvpTitle: {
+    color: "#5a1e2c",
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 6,
+  },
+
+  rsvpHint: {
+    fontSize: 12,
+    color: "#7a2d3f",
+    marginBottom: 8,
+  },
+
+  dateInput: {
+    borderWidth: 1,
+    borderColor: "#d8c7a1",
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: "#3b2a2a",
+    marginBottom: 10,
+    backgroundColor: "#f8f4ec",
+  },
+
+  rsvpButton: {
+    backgroundColor: "#8d1035ff",
+    padding: 12,
+    borderRadius: 10,
+    alignSelf: "flex-start",
+  },
+
+  rsvpButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
   },
 
   grid: {
@@ -264,45 +561,44 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     justifyContent: "space-between",
-    rowGap: 12,
+    rowGap: 14,
   },
 
-  infoCard: {
+  card: {
     width: "48%",
     backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 12,
-    borderLeftWidth: 3,
-    borderLeftColor: "#ef4444",
+    borderRadius: 16,
+    padding: 14,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
     elevation: 3,
-    minHeight: 150,
+    minHeight: 120,
+    justifyContent: "space-between",
   },
 
-  infoHeader: {
+  cardHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 8,
-    gap: 6,
+    gap: 8,
+    marginBottom: 10,
   },
 
-  infoIcon: {
-    fontSize: 18,
+  cardIcon: {
+    fontSize: 20,
   },
 
-  infoTitle: {
-    color: "#7f1d1d",
-    fontSize: 14,
+  cardTitle: {
+    color: "#5a1e2c",
+    fontSize: 15,
     fontWeight: "700",
     flexShrink: 1,
   },
 
-  infoContent: {
-    color: "#991b1b",
-    fontSize: 12,
+  cardSubtitle: {
+    color: "#7a2d3f",
+    fontSize: 13,
     lineHeight: 18,
   },
 });

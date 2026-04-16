@@ -10,7 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 
-const API_BASE_URL = "http://192.168.4.211:8000";
+import { API_BASE_URL } from "../../constants/api";
 
 type Country = {
   id: number;
@@ -34,7 +34,10 @@ function CountryCard({ country }: CountryCardProps) {
   const router = useRouter();
 
   function handlePress() {
-    router.push(`/countries/${country.id}`);
+    router.push({
+    pathname: "/countries/[id]",
+    params: { id: country.id, name: country.name },
+});
   }
 
   const displayCity = country.city || country.name;
@@ -144,7 +147,7 @@ export default function IndexScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#fff5f5",
+    backgroundColor: "#f4efe6", // soft cream
   },
 
   page: {
@@ -158,9 +161,9 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    fontSize: 32,
+    fontSize: 30,
     fontWeight: "700",
-    color: "#7f1d1d",
+    color: "#5a1e2c", // maroon
   },
 
   loadingWrap: {
@@ -171,26 +174,26 @@ const styles = StyleSheet.create({
   },
 
   loadingText: {
-    fontSize: 16,
-    color: "#7f1d1d",
+    fontSize: 14,
+    color: "#7a2d3f",
   },
 
   section: {
-    marginBottom: 24,
+    marginBottom: 28,
   },
 
   sectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "600",
-    color: "#7f1d1d",
-    marginBottom: 12,
+    color: "#5a1e2c",
+    marginBottom: 10,
     paddingHorizontal: 24,
   },
 
   row: {
     paddingHorizontal: 24,
     paddingBottom: 4,
-    gap: 12,
+    gap: 14,
   },
 
   card: {
@@ -198,30 +201,31 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 16,
     overflow: "hidden",
-    backgroundColor: "#ef4444",
+    backgroundColor: "#8d1035ff", // clean card instead of red
     justifyContent: "flex-end",
+
     shadowColor: "#000",
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 4,
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 3,
   },
 
   cardOverlay: {
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: "rgba(0,0,0,0.15)",
+    backgroundColor: "rgba(161, 100, 114, 0.33)", // maroon overlay
   },
 
   cityText: {
     color: "#ffffff",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "600",
   },
 
   countryText: {
-    color: "rgba(255,255,255,0.9)",
-    fontSize: 14,
+    color: "rgba(255,255,255,0.85)",
+    fontSize: 13,
     marginTop: 2,
   },
 
@@ -229,21 +233,21 @@ const styles = StyleSheet.create({
     width: 180,
     height: 160,
     borderRadius: 16,
-    backgroundColor: "#fecaca",
+    backgroundColor: "#e9dfcc",
     padding: 14,
     justifyContent: "center",
   },
 
   comingSoonTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
-    color: "#7f1d1d",
+    color: "#5a1e2c",
     marginBottom: 6,
   },
 
   comingSoonText: {
-    fontSize: 13,
-    color: "#991b1b",
+    fontSize: 12,
+    color: "#7a2d3f",
     lineHeight: 18,
   },
 });

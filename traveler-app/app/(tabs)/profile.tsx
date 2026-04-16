@@ -1,19 +1,32 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   SafeAreaView,
   ScrollView,
   View,
   Text,
   StyleSheet,
-  Pressable,
   ActivityIndicator,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { API_BASE_URL } from "../../constants/api"; // adjust path if needed
+import { API_BASE_URL } from "../../constants/api";
+import { useFocusEffect } from "@react-navigation/native";
+
+type CountryMini = {
+  id: number;
+  name: string;
+};
+
+type UpcomingTrip = {
+  country: CountryMini;
+  trip_date: string;
+};
 
 type ProfileData = {
   display_name?: string;
   bio?: string;
+  visited_count?: number;
+  visited_countries?: CountryMini[];
+  upcoming_trip?: UpcomingTrip | null;
 };
 
 type MeResponse = {
@@ -28,35 +41,70 @@ export default function ProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    fetchMe();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchMe();
+    }, [])
+  );
 
   const fetchMe = async () => {
     try {
       setLoading(true);
       setError("");
 
-      const token = await SecureStore.getItemAsync("accessToken");
-      console.log("Saved token exists:", !!token);
+      let accessToken = await SecureStore.getItemAsync("accessToken");
 
-      if (!token) {
+      if (!accessToken) {
         setError("No access token found. Please log in again.");
         return;
       }
 
-      const response = await fetch(`${API_BASE_URL}/api/auth/me/`, {
+      let response = await fetch(`${API_BASE_URL}/api/auth/me/`, {
         method: "GET",
         headers: {
-         Authorization: `Bearer ${token}`,
-         "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
         },
       });
 
-      console.log("Me status:", response.status);
+      if (response.status === 401) {
+        const refreshToken = await SecureStore.getItemAsync("refreshToken");
+
+        if (!refreshToken) {
+          setError("Session expired. Please log in again.");
+          return;
+        }
+
+        const refreshResponse = await fetch(`${API_BASE_URL}/api/token/refresh/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            refresh: refreshToken,
+          }),
+        });
+
+        const refreshData = await refreshResponse.json();
+
+        if (!refreshResponse.ok || !refreshData.access) {
+          setError("Session expired. Please log in again.");
+          return;
+        }
+
+        accessToken = refreshData.access;
+        await SecureStore.setItemAsync("accessToken", accessToken);
+
+        response = await fetch(`${API_BASE_URL}/api/auth/me/`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+      }
 
       const data = await response.json();
-      console.log("Me response:", data);
 
       if (!response.ok) {
         throw new Error(data?.detail ?? "Could not load profile");
@@ -73,12 +121,14 @@ export default function ProfileScreen() {
 
   const displayName = user?.profile?.display_name || user?.username || "User";
   const bio = user?.profile?.bio || "Welcome to your travel profile";
+  const visitedCount = user?.profile?.visited_count ?? 0;
+  const upcomingTrip = user?.profile?.upcoming_trip;
 
   return (
     <SafeAreaView style={styles.safe}>
       {loading ? (
         <View style={styles.centered}>
-          <ActivityIndicator size="large" />
+          <ActivityIndicator size="large" color="#5a1e2c" />
           <Text style={styles.loadingText}>Loading profile...</Text>
         </View>
       ) : error ? (
@@ -101,7 +151,6 @@ export default function ProfileScreen() {
 
           <View style={styles.content}>
             <View style={styles.card}>
-              <View style={styles.leftBorder} />
               <View style={styles.cardBody}>
                 <Text style={styles.cardIcon}>✉️</Text>
                 <View>
@@ -112,7 +161,6 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.card}>
-              <View style={styles.leftBorder} />
               <View style={styles.cardBody}>
                 <Text style={styles.cardIcon}>👤</Text>
                 <View>
@@ -123,7 +171,6 @@ export default function ProfileScreen() {
             </View>
 
             <View style={styles.card}>
-              <View style={styles.leftBorder} />
               <View style={styles.cardContent}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.cardIcon}>📅</Text>
@@ -131,37 +178,39 @@ export default function ProfileScreen() {
                 </View>
 
                 <View style={styles.tripCard}>
-                  <Text style={styles.tripLocation}>Cancun, Mexico</Text>
-                  <Text style={styles.tripSubtitle}>Spring Break 2026</Text>
-                  <Text style={styles.tripDate}>March 15 – March 22</Text>
+                  {upcomingTrip ? (
+                    <>
+                      <Text style={styles.tripLocation}>
+                        {upcomingTrip.country.name}
+                      </Text>
+                      <Text style={styles.tripSubtitle}>Planned Trip</Text>
+                      <Text style={styles.tripDate}>{upcomingTrip.trip_date}</Text>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.tripLocation}>No upcoming trip yet</Text>
+                      <Text style={styles.tripSubtitle}>
+                        RSVP to a country to see it here
+                      </Text>
+                    </>
+                  )}
                 </View>
               </View>
             </View>
 
             <View style={styles.card}>
-  <View style={styles.leftBorder} />
-  <View style={styles.cardContent}>
-    <View style={styles.sectionHeader}>
-      <Text style={styles.cardIcon}>📍</Text>
-      <Text style={styles.sectionTitle}>Travel Stats</Text>
-    </View>
+              <View style={styles.cardContent}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.cardIcon}>📍</Text>
+                  <Text style={styles.sectionTitle}>Travel Stats</Text>
+                </View>
 
-      <View style={styles.statsRow}>
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>12</Text>
-          <Text style={styles.statLabel}>Countries</Text>
-        </View>
-
-        <View style={styles.statBox}>
-          <Text style={styles.statNumber}>28</Text>
-          <Text style={styles.statLabel}>Cities</Text>
-        </View>
-
-       
-      </View>
-    </View>
-  </View>
-
+                <View style={styles.singleStatBox}>
+                  <Text style={styles.statNumber}>{visitedCount}</Text>
+                  <Text style={styles.statLabel}>Countries Visited</Text>
+                </View>
+              </View>
+            </View>
           </View>
         </ScrollView>
       )}
@@ -172,160 +221,163 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#f8fafc",
+    backgroundColor: "#f4efe6",
   },
+
   scrollContent: {
     paddingBottom: 32,
   },
+
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
     paddingHorizontal: 24,
   },
+
   loadingText: {
     marginTop: 12,
     fontSize: 14,
-    color: "#7f1d1d",
+    color: "#7a2d3f",
   },
+
   errorText: {
     fontSize: 14,
-    color: "#dc2626",
+    color: "#7a2d3f",
     textAlign: "center",
   },
+
   header: {
-    backgroundColor: "#ef4444",
+    backgroundColor: "#8d1035ff",
     paddingHorizontal: 24,
     paddingVertical: 32,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+    borderBottomLeftRadius: 28,
+    borderBottomRightRadius: 28,
   },
+
   headerContent: {
     alignItems: "center",
   },
+
   avatar: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: "#ffffff",
+    backgroundColor: "#f8f4ec",
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
   },
+
   avatarText: {
     fontSize: 36,
     fontWeight: "700",
-    color: "#ef4444",
+    color: "#5a1e2c",
   },
+
   name: {
     fontSize: 24,
     fontWeight: "700",
     color: "#ffffff",
     marginBottom: 4,
   },
+
   subtitle: {
     fontSize: 14,
-    color: "#fecaca",
+    color: "#eadfce",
     textAlign: "center",
   },
+
   content: {
     paddingHorizontal: 24,
     paddingTop: 24,
   },
+
   card: {
     backgroundColor: "#ffffff",
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    flexDirection: "row",
     marginBottom: 16,
     shadowColor: "#000",
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 3 },
     elevation: 3,
   },
-  leftBorder: {
-    width: 4,
-    backgroundColor: "#ef4444",
-    borderRadius: 4,
-    marginRight: 12,
-  },
+
   cardBody: {
     flexDirection: "row",
     alignItems: "center",
-    flex: 1,
   },
+
   cardContent: {
     flex: 1,
   },
+
   cardIcon: {
     fontSize: 18,
     marginRight: 12,
   },
+
   label: {
     fontSize: 12,
-    color: "#b91c1c",
+    color: "#7a2d3f",
     marginBottom: 2,
   },
+
   value: {
     fontSize: 14,
-    color: "#7f1d1d",
+    color: "#3b2a2a",
   },
+
   sectionHeader: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 12,
   },
+
   sectionTitle: {
     fontSize: 14,
     fontWeight: "600",
-    color: "#7f1d1d",
+    color: "#5a1e2c",
   },
+
   tripCard: {
-    marginTop: 8,
+    marginTop: 4,
   },
+
   tripLocation: {
     fontSize: 15,
-    fontWeight: "600",
-    color: "#7f1d1d",
+    fontWeight: "700",
+    color: "#5a1e2c",
   },
+
   tripSubtitle: {
     fontSize: 13,
-    color: "#b91c1c",
+    color: "#7a2d3f",
     marginTop: 4,
   },
+
   tripDate: {
     fontSize: 12,
-    color: "#dc2626",
+    color: "#3b2a2a",
     marginTop: 4,
   },
-  buttonText: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#7f1d1d",
+
+  singleStatBox: {
+    alignItems: "center",
+    paddingVertical: 4,
   },
 
-  statsRow: {
-  flexDirection: "row",
-  justifyContent: "space-between",
-  marginTop: 4,
-},
+  statNumber: {
+    fontSize: 30,
+    fontWeight: "700",
+    color: "#5a1e2c",
+  },
 
-statBox: {
-  flex: 1,
-  alignItems: "center",
-},
-
-statNumber: {
-  fontSize: 26,
-  fontWeight: "700",
-  color: "#dc2626",
-},
-
-statLabel: {
-  fontSize: 12,
-  color: "#b91c1c",
-  marginTop: 4,
-},
-
+  statLabel: {
+    fontSize: 13,
+    color: "#7a2d3f",
+    marginTop: 4,
+  },
 });

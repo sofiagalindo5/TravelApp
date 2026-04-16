@@ -77,3 +77,37 @@ class ItineraryDay(models.Model):
         return f"{self.country.name} - Day {self.day_number}"
     
 
+class PendingCountrySubmission(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("approved", "Approved"),
+        ("rejected", "Rejected"),
+    ]
+
+    # basic country info
+    country_name = models.CharField(max_length=100)
+    city_or_region = models.CharField(max_length=100, blank=True)
+
+    # main sections from form
+    hotel_recommendation = models.TextField(blank=True)
+    safety_tip = models.TextField(blank=True)
+    caution_areas = models.TextField(blank=True)
+    perfect_weekend = models.TextField(blank=True)
+    hidden_gem = models.TextField(blank=True)
+    pro_tip = models.TextField(blank=True)
+
+    # personal interview answers
+    people_attribute = models.TextField(blank=True)
+    favorite_thing = models.TextField(blank=True)
+    lived_experience = models.TextField(blank=True)
+
+    # moderation
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    admin_notes = models.TextField(blank=True)
+
+    # tracking
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.country_name} - {self.city_or_region or 'No region'} ({self.status})"

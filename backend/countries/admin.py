@@ -10,7 +10,16 @@ from .models import (
     ProTip,
     PersonalInterview,
     ItineraryDay,
+    PendingCountrySubmission,
 )
+
+
+@admin.register(PendingCountrySubmission)
+class PendingCountrySubmissionAdmin(admin.ModelAdmin):
+    list_display = ("country_name", "city_or_region", "status", "submitted_at")
+    list_filter = ("status", "submitted_at")
+    search_fields = ("country_name", "city_or_region")
+
 
 admin.site.register(Country)
 admin.site.register(Hotel)

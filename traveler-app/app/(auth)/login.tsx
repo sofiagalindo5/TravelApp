@@ -1,214 +1,198 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
+import {
+  View,
+  Text,
+  TextInput,
+  Pressable,
+  StyleSheet,
+  ImageBackground,
+} from "react-native";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react-native";
 import * as SecureStore from "expo-secure-store";
 import { router } from "expo-router";
-
-// add near imports or top of file
-const API_BASE_URL = "http://192.168.4.211:8000"; // <-- replace with your laptop IP
+import { API_BASE_URL } from "../../constants/api";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");     // (this is really username for now)
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async () => {
-  try {
-    console.log("Attempting login...");
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/token/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: email,
+          password: password,
+        }),
+      });
 
-    const res = await fetch(`${API_BASE_URL}/api/token/`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        username: email,
-        password: password,
-      }),
-    });
+      const data = await res.json();
 
-    console.log("Status:", res.status);
+      if (!res.ok) {
+        throw new Error(data?.detail ?? "Login failed");
+      }
 
-    const data = await res.json();
-    console.log("Response:", data);
+      await SecureStore.setItemAsync("accessToken", data.access);
+      await SecureStore.setItemAsync("refreshToken", data.refresh);
 
-    if (!res.ok) {
-      throw new Error(data?.detail ?? "Login failed");
+      router.replace("/(tabs)");
+    } catch (err: any) {
+      console.log("Login error:", err?.message ?? String(err));
     }
-
-    await SecureStore.setItemAsync("accessToken", data.access);
-    await SecureStore.setItemAsync("refreshToken", data.refresh);
-
-    console.log("Login success. Navigating...");
-    router.replace("/(tabs)");
-  } catch (err: any) {
-    console.log("Login error:", err?.message ?? String(err));
-  }
-};
+  };
 
   return (
-    <View style={styles.page}>
-      {/* Phone frame is optional in RN. Usually you skip it. */}
-      <View style={styles.phoneBody}>
-        <LinearGradient
-          colors={["#fef2f2", "#fee2e2"]} // red-50 -> red-100
-          style={styles.screen}
-        >
-          {/* “Dynamic island” */}
-          <View style={styles.island} />
+    <ImageBackground
+      source={require("../../assets/images/stripes.jpeg")}
+      style={styles.background}
+      resizeMode="cover"
+    >
+      <View style={styles.container}>
+        <View style={styles.card}>
+          <Text style={styles.title}>Welcome Back</Text>
+          <Text style={styles.subtitle}>Sign in to your account</Text>
 
-          <View style={styles.content}>
-            {/* Header */}
-            <View style={styles.header}>
-              <View style={styles.logoCircle}>
-                <Lock size={28} color="#ffffff" />
-              </View>
-              <Text style={styles.title}>Welcome Back</Text>
-              <Text style={styles.subtitle}>Sign in to your account</Text>
-            </View>
-
-            {/* Card */}
-            <View style={styles.card}>
-              {/* Email */}
-              <Text style={styles.label}>Email</Text>
-              <View style={styles.inputRow}>
-                <Mail size={18} color="#f87171" />
-                <TextInput
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#9ca3af"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  style={styles.input}
-                />
-              </View>
-
-              {/* Password */}
-              <Text style={[styles.label, { marginTop: 14 }]}>Password</Text>
-              <View style={styles.inputRow}>
-                <Lock size={18} color="#f87171" />
-                <TextInput
-                  value={password}
-                  onChangeText={setPassword}
-                  placeholder="Enter your password"
-                  placeholderTextColor="#9ca3af"
-                  secureTextEntry={!showPassword}
-                  style={styles.input}
-                />
-                <Pressable onPress={() => setShowPassword((s) => !s)} hitSlop={10}>
-                  {showPassword ? (
-                    <EyeOff size={18} color="#f87171" />
-                  ) : (
-                    <Eye size={18} color="#f87171" />
-                  )}
-                </Pressable>
-              </View>
-
-              {/* Login button */}
-              <Pressable style={styles.button} onPress={handleLogin}>
-                <Text style={styles.buttonText}>Sign In</Text>
-              </Pressable>
-
-              {/* Sign up */}
-              <View style={styles.signupRow}>
-                <Text style={styles.signupText}>Don't have an account? </Text>
-                <Pressable onPress={() => console.log("Go to Sign Up")}>
-                  <Text style={styles.signupLink}>Sign up</Text>
-                </Pressable>
-              </View>
-            </View>
+          <Text style={styles.label}>Email</Text>
+          <View style={styles.inputRow}>
+            <Mail size={18} color="#5a1e2c" />
+            <TextInput
+              value={email}
+              onChangeText={setEmail}
+              placeholder="Enter your email"
+              placeholderTextColor="#9ca3af"
+              autoCapitalize="none"
+              style={styles.input}
+            />
           </View>
-        </LinearGradient>
+
+          <Text style={[styles.label, { marginTop: 14 }]}>Password</Text>
+          <View style={styles.inputRow}>
+            <Lock size={18} color="#5a1e2c" />
+            <TextInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="Enter your password"
+              placeholderTextColor="#9ca3af"
+              secureTextEntry={!showPassword}
+              style={styles.input}
+            />
+            <Pressable onPress={() => setShowPassword((s) => !s)}>
+              {showPassword ? (
+                <EyeOff size={18} color="#5a1e2c" />
+              ) : (
+                <Eye size={18} color="#5a1e2c" />
+              )}
+            </Pressable>
+          </View>
+
+          <Pressable style={styles.button} onPress={handleLogin}>
+            <Text style={styles.buttonText}>Sign In</Text>
+          </Pressable>
+
+          <View style={styles.signupRow}>
+            <Text style={styles.signupText}>Don&apos;t have an account? </Text>
+            <Pressable>
+              <Text style={styles.signupLink}>Sign up</Text>
+            </Pressable>
+          </View>
+        </View>
       </View>
-    </View>
+    </ImageBackground>
   );
 }
 
 const styles = StyleSheet.create({
-  page: {
+  background: {
     flex: 1,
-    backgroundColor: "#111827", // gray-900
+  },
+
+  container: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    justifyContent: "center",
-    padding: 16,
+    padding: 20,
   },
-  phoneBody: {
-    width: 390,
-    height: 844,
-    backgroundColor: "#000000",
-    borderRadius: 60,
-    padding: 12,
-  },
-  screen: {
-    flex: 1,
-    borderRadius: 50,
-    overflow: "hidden",
-  },
-  island: {
-    position: "absolute",
-    top: 0,
-    left: "50%",
-    transform: [{ translateX: -60 }],
-    width: 120,
-    height: 35,
-    backgroundColor: "#000",
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
-    zIndex: 10,
-  },
-  content: {
-    flex: 1,
-    paddingTop: 70,
-    paddingBottom: 24,
-    paddingHorizontal: 24,
-    justifyContent: "center",
-    gap: 18,
-  },
-  header: { alignItems: "center" },
-  logoCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: "#dc2626", // red-600
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-  },
-  title: { fontSize: 28, fontWeight: "700", color: "#7f1d1d" }, // red-900-ish
-  subtitle: { marginTop: 6, color: "#b91c1c" }, // red-700-ish
 
   card: {
-    backgroundColor: "#ffffff",
-    borderRadius: 18,
-    padding: 18,
-    shadowOpacity: 0.2,
+    width: "100%",
+    maxWidth: 360,
+    backgroundColor: "#fff9ebff",
+    borderRadius: 20,
+    padding: 24,
+    shadowColor: "#000",
+    shadowOpacity: 0.15,
     shadowRadius: 12,
-    shadowOffset: { width: 0, height: 8 },
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
   },
-  label: { color: "#7f1d1d", fontWeight: "600", marginBottom: 8 },
+
+  title: {
+    fontSize: 26,
+    fontWeight: "700",
+    color: "#5a1e2c",
+    textAlign: "center",
+    marginBottom: 4,
+  },
+
+  subtitle: {
+    fontSize: 13,
+    color: "#7a2d3f",
+    textAlign: "center",
+    marginBottom: 18,
+  },
+
+  label: {
+    color: "#3b2a2a",
+    fontWeight: "600",
+    marginBottom: 8,
+  },
+
   inputRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: "#fef2f2", // red-50
-    borderColor: "#fecaca", // red-200
+    backgroundColor: "#f2e6ca8a",
+    borderColor: "#ffffffff",
     borderWidth: 1,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
   },
-  input: { flex: 1, fontSize: 16, color: "#111827" },
+
+  input: {
+    flex: 1,
+    fontSize: 16,
+    color: "#3b2a2a",
+  },
 
   button: {
     marginTop: 18,
-    backgroundColor: "#dc2626",
+    backgroundColor: "#5a1e2c",
     borderRadius: 12,
     paddingVertical: 14,
     alignItems: "center",
   },
-  buttonText: { color: "#fff", fontWeight: "700", fontSize: 16 },
 
-  signupRow: { flexDirection: "row", justifyContent: "center", marginTop: 16 },
-  signupText: { color: "#b91c1c" },
-  signupLink: { color: "#dc2626", fontWeight: "700" },
+  buttonText: {
+    color: "#ffffff",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+
+  signupRow: {
+    flexDirection: "row",
+    justifyContent: "center",
+    marginTop: 16,
+  },
+
+  signupText: {
+    color: "#3b2a2a",
+  },
+
+  signupLink: {
+    color: "#5a1e2c",
+    fontWeight: "700",
+  },
 });

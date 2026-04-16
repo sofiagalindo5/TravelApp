@@ -22,6 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-701u$wm!807kl)2=_t4b^79*sd5zap9v_a&6eljm&mv82#%pjs'
 
+GOOGLE_FORM_WEBHOOK_SECRET = "supersecret123"
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
