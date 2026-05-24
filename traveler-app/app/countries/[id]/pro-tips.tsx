@@ -7,8 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
 } from "react-native";
-import { useLocalSearchParams } from "expo-router";
-
+import { Stack, useLocalSearchParams } from "expo-router";
 import { API_BASE_URL } from "../../../constants/api";
 
 type ProTip = {
@@ -29,42 +28,48 @@ export default function ProTipsScreen() {
       try {
         const response = await fetch(`${API_BASE_URL}/api/countries/${id}/`);
         const data = await response.json();
-
-        if (data.pro_tips) {
-          setTips(data.pro_tips);
-        } else {
-          setTips([]); 
-        }
+        setTips(data.pro_tips ?? []);
       } catch (error) {
         console.log("Error loading pro tips:", error);
       } finally {
         setLoading(false);
       }
     }
-
-    if (id) {
-      loadProTips();
-    }
+    if (id) loadProTips();
   }, [id]);
 
   return (
     <SafeAreaView style={styles.safe}>
+      <Stack.Screen options={{ headerShown: false }} />
       <ScrollView contentContainerStyle={styles.page}>
-        <Text style={styles.header}>Pro-Tips</Text>
+
+        <Text style={styles.header}>Pro Tips</Text>
+        <Text style={styles.subtitle}>Local knowledge for your journey</Text>
 
         {loading ? (
           <View style={styles.center}>
-            <ActivityIndicator size="large" />
+            <ActivityIndicator size="large" color="#5a1e2c" />
           </View>
         ) : tips.length > 0 ? (
-          tips.map((tip) => (
+          tips.map((tip, index) => (
             <View key={tip.id} style={styles.card}>
-              <Text style={styles.tipTitle}>{tip.title}</Text>
-              <Text style={styles.description}>{tip.description}</Text>
+              <View style={styles.cardAccent} />
+              <View style={styles.cardBody}>
+                <View style={styles.tipNumber}>
+                  <Text style={styles.tipNumberText}>{index + 1}</Text>
+                </View>
+                <View style={styles.tipContent}>
+                  <Text style={styles.tipTitle}>{tip.title}</Text>
+                  <Text style={styles.description}>{tip.description}</Text>
+                </View>
+              </View>
             </View>
           ))
         ) : (
-          <Text style={styles.empty}>No pro-tips available yet.</Text>
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyIcon}>🗺️</Text>
+            <Text style={styles.emptyText}>No pro tips yet for this destination.</Text>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -74,57 +79,92 @@ export default function ProTipsScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#fff5f5",
+    backgroundColor: "#f4efe6",
   },
-
   page: {
-    paddingTop: 40,
+    paddingTop: 32,
     paddingHorizontal: 24,
-    paddingBottom: 40,
+    paddingBottom: 48,
   },
-
   header: {
     fontSize: 28,
-    fontWeight: "700",
-    color: "#7f1d1d",
-    marginBottom: 20,
+    fontWeight: "800",
+    color: "#3b1018",
+    marginBottom: 4,
   },
-
+  subtitle: {
+    fontSize: 13,
+    color: "#9e6b6b",
+    marginBottom: 28,
+    letterSpacing: 0.3,
+  },
   center: {
     alignItems: "center",
-    marginTop: 40,
+    marginTop: 60,
   },
-
   card: {
     backgroundColor: "#ffffff",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 18,
     marginBottom: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: "#ef4444",
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 6,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 2,
+    overflow: "hidden",
+    shadowColor: "#3b1018",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
   },
-
+  cardAccent: {
+    height: 4,
+    backgroundColor: "#5a1e2c",
+    borderTopLeftRadius: 18,
+    borderTopRightRadius: 18,
+  },
+  cardBody: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    padding: 16,
+    gap: 14,
+  },
+  tipNumber: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#f5ede0",
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 2,
+    flexShrink: 0,
+  },
+  tipNumberText: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#5a1e2c",
+  },
+  tipContent: {
+    flex: 1,
+  },
   tipTitle: {
-    fontSize: 18,
-    fontWeight: "600",
-    color: "#7f1d1d",
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#3b1018",
     marginBottom: 6,
   },
-
   description: {
     fontSize: 14,
-    color: "#991b1b",
-    lineHeight: 20,
+    color: "#7a4a4a",
+    lineHeight: 21,
   },
-
-  empty: {
-    marginTop: 20,
-    fontSize: 16,
-    color: "#991b1b",
+  emptyBox: {
+    marginTop: 60,
+    alignItems: "center",
+    gap: 12,
+  },
+  emptyIcon: {
+    fontSize: 40,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: "#9e6b6b",
+    textAlign: "center",
   },
 });

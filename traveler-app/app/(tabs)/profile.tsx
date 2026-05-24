@@ -6,10 +6,13 @@ import {
   Text,
   StyleSheet,
   ActivityIndicator,
+  Pressable,
 } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { API_BASE_URL } from "../../constants/api";
 import { useFocusEffect } from "@react-navigation/native";
+import { router } from "expo-router";
+ 
 
 type CountryMini = {
   id: number;
@@ -124,6 +127,13 @@ export default function ProfileScreen() {
   const visitedCount = user?.profile?.visited_count ?? 0;
   const upcomingTrip = user?.profile?.upcoming_trip;
 
+  //logout logic
+  const handleLogout = async () => {
+  await SecureStore.deleteItemAsync("accessToken");
+  await SecureStore.deleteItemAsync("refreshToken");
+  router.replace("/(auth)/login");
+};
+
   return (
     <SafeAreaView style={styles.safe}>
       {loading ? (
@@ -211,7 +221,11 @@ export default function ProfileScreen() {
                 </View>
               </View>
             </View>
-          </View>
+          <Pressable style={styles.logoutButton} onPress={handleLogout}>
+              <Text style={styles.logoutText}>Log Out</Text>
+            </Pressable>
+
+          </View>  {/* closes <View style={styles.content}> */}
         </ScrollView>
       )}
     </SafeAreaView>
@@ -379,5 +393,21 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#7a2d3f",
     marginTop: 4,
-  },
+  }, 
+
+  logoutButton: {
+  marginTop: 8,
+  marginBottom: 16,
+  backgroundColor: "#fff0f0",
+  borderRadius: 12,
+  paddingVertical: 14,
+  alignItems: "center",
+  borderWidth: 1,
+  borderColor: "#f4c2c2",
+},
+logoutText: {
+  color: "#b91c1c",
+  fontWeight: "700",
+  fontSize: 15,
+},
 });

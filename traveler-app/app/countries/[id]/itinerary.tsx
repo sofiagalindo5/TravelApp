@@ -62,13 +62,21 @@ export default function ItineraryScreen() {
             <Text style={styles.loadingText}>Loading itinerary...</Text>
           </View>
         ) : itineraryDays.length > 0 ? (
-          itineraryDays.map((day) => (
-            <View key={day.id} style={styles.card}>
-              <Text style={styles.dayLabel}>Day {day.day_number}</Text>
-              <Text style={styles.dayTitle}>{day.title}</Text>
-              <Text style={styles.activities}>{day.activities}</Text>
+            itineraryDays.map((day) => (
+          <View key={day.id} style={styles.card}>
+            <View style={styles.cardAccent} />
+            <View style={styles.cardBody}>
+              <View style={styles.dayBadge}>
+                <Text style={styles.dayBadgeText}>Day</Text>
+                <Text style={styles.dayBadgeNumber}>{day.day_number}</Text>
+              </View>
+              <View style={styles.dayContent}>
+                <Text style={styles.dayTitle}>{day.title}</Text>
+                <Text style={styles.activities}>{day.activities}</Text>
+              </View>
             </View>
-          ))
+          </View>
+        ))
         ) : (
           <Text style={styles.empty}>No itinerary available yet.</Text>
         )}
@@ -78,77 +86,37 @@ export default function ItineraryScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: "#f4efe6",
-  },
-
-  page: {
-    paddingTop: 28,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-  },
-
-  header: {
-    fontSize: 28,
-    fontWeight: "700",
-    color: "#5a1e2c",
-  },
-
-  subtitle: {
-    fontSize: 14,
-    color: "#7a2d3f",
-    marginBottom: 20,
-    marginTop: 4,
-  },
-
-  center: {
-    alignItems: "center",
-    marginTop: 40,
-    gap: 10,
-  },
-
-  loadingText: {
-    fontSize: 14,
-    color: "#7a2d3f",
-  },
-
+  safe: { flex: 1, backgroundColor: "#f4efe6" },
+  page: { paddingTop: 32, paddingHorizontal: 24, paddingBottom: 48 },
+  header: { fontSize: 28, fontWeight: "800", color: "#3b1018", marginBottom: 4 },
+  subtitle: { fontSize: 13, color: "#9e6b6b", marginBottom: 28, letterSpacing: 0.3 },
+  center: { alignItems: "center", marginTop: 60, gap: 10 },
+  loadingText: { fontSize: 14, color: "#9e6b6b" },
   card: {
     backgroundColor: "#ffffff",
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
-    shadowColor: "#000",
-    shadowOpacity: 0.07,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 3 },
+    borderRadius: 18,
+    marginBottom: 16,
+    overflow: "hidden",
+    shadowColor: "#3b1018",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
     elevation: 3,
   },
-
-  dayLabel: {
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#7a2d3f",
-    marginBottom: 4,
+  cardAccent: { height: 4, backgroundColor: "#5a1e2c" },
+  cardBody: { flexDirection: "row", alignItems: "flex-start", padding: 16, gap: 14 },
+  dayBadge: {
+    width: 44, height: 44, borderRadius: 12,
+    backgroundColor: "#f5ede0",
+    justifyContent: "center", alignItems: "center",
+    flexShrink: 0, marginTop: 2,
   },
-
-  dayTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#5a1e2c",
-    marginBottom: 8,
-  },
-
-  activities: {
-    fontSize: 14,
-    color: "#3b2a2a",
-    lineHeight: 20,
-  },
-
-  empty: {
-    marginTop: 20,
-    fontSize: 15,
-    color: "#7a2d3f",
-  },
+  dayBadgeText: { fontSize: 9, fontWeight: "700", color: "#5a1e2c", letterSpacing: 0.8, textTransform: "uppercase" },
+  dayBadgeNumber: { fontSize: 16, fontWeight: "800", color: "#5a1e2c", lineHeight: 18 },
+  dayContent: { flex: 1 },
+  dayTitle: { fontSize: 16, fontWeight: "700", color: "#3b1018", marginBottom: 6 },
+  activities: { fontSize: 14, color: "#7a4a4a", lineHeight: 21 },
+  emptyBox: { marginTop: 60, alignItems: "center", gap: 12 },
+  emptyIcon: { fontSize: 40 },
+  emptyText: { fontSize: 15, color: "#9e6b6b", textAlign: "center" },
 });
-

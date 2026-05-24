@@ -52,7 +52,7 @@ class ItineraryDaySerializer(serializers.ModelSerializer):
 class CountryListSerializer(serializers.ModelSerializer):
     class Meta:
         model = Country
-        fields = ["id", "name", "hero_image_url", "short_description"]
+        fields = ["id", "name", "hero_image_url", "short_description", "latitude", "longitude"]
 
 
 class CountryDetailSerializer(serializers.ModelSerializer):
@@ -72,6 +72,8 @@ class CountryDetailSerializer(serializers.ModelSerializer):
             "code",
             "hero_image_url",
             "short_description",
+            "latitude",
+            "longitude",
             "hotels",
             "safety_tips",
             "hidden_gems",
@@ -80,16 +82,6 @@ class CountryDetailSerializer(serializers.ModelSerializer):
             "itinerary_days",
             "is_visited",
         ]
-
-    def get_is_visited(self, obj):
-        request = self.context.get("request")
-
-        if request and request.user.is_authenticated:
-            profile = getattr(request.user, "profile", None)
-            if profile:
-                return profile.visited_countries.filter(id=obj.id).exists()
-
-        return False
 
     def get_is_visited(self, obj):
         request = self.context.get("request")

@@ -1,6 +1,8 @@
 from django.apps import AppConfig
 
-
 class TravelUsersConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'travel_users'
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "travel_users"
+
+    def ready(self):
+        import travel_users.signals

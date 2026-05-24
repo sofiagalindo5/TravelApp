@@ -3,9 +3,11 @@ from django.db import models
 
 class Country(models.Model):
     name = models.CharField(max_length=100, unique=True)
-    code = models.CharField(max_length=2, blank=True)  # optional: BO, JP, ES
+    code = models.CharField(max_length=2, blank=True) 
     hero_image_url = models.URLField(blank=True)
     short_description = models.TextField(blank=True)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
 
     def __str__(self):
         return self.name
@@ -16,7 +18,7 @@ class Hotel(models.Model):
     name = models.CharField(max_length=120)
     city = models.CharField(max_length=100, blank=True)
     description = models.TextField(blank=True)
-    price_level = models.CharField(max_length=20, blank=True)  # $, $$, $$$
+    price_level = models.CharField(max_length=20, blank=True)  
     link = models.URLField(blank=True)
 
     def __str__(self):

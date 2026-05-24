@@ -5,6 +5,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from .models import Profile, UpcomingTrip
+from rest_framework_simplejwt.tokens import RefreshToken  
 
 from countries.models import Country
 from .models import Profile
@@ -20,6 +21,22 @@ class RegisterView(generics.CreateAPIView):
     serializer_class = RegisterSerializer
     permission_classes = [permissions.AllowAny]
 
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+
+        # Auto-issue JWT tokens on registration
+        refresh = RefreshToken.for_user(user)
+        return Response({
+            "user": {
+                "id": user.id,
+                "username": user.username,
+                "email": user.email,
+            },
+            "refresh": str(refresh),
+            "access":  str(refresh.access_token),
+        }, status=status.HTTP_201_CREATED)
 
 class MeView(generics.GenericAPIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -107,6 +124,7 @@ class AddVisitedCountryView(APIView):
                 "country": {
                     "id": country.id,
                     "name": country.name,
+                    "code": country.code,
                 },
                 "is_visited": True,
                 "visited_count": profile.visited_countries.count(),
